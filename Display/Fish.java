@@ -6,7 +6,7 @@ import java.awt.Point;
 public class Fish{
   private String name;
   private String mobilite;
-  public Point position;
+  private Point position;
   private Point dimension;
   private Point destination;
   private float stepx;
@@ -84,6 +84,10 @@ public class Fish{
 
   public void startFish(){
     this.started = true;
+  }
+
+  public boolean isStarted(){
+    return this.started;
   }
 
   public boolean arrived(){

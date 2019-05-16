@@ -157,7 +157,7 @@ public class DisplayConsole {
           if (display.vue.fishes.get(j).getName().compareTo(name) == 0) {
             found = true;
             Point prevDest = display.vue.fishes.get(j).getDestination();
-            if ((int) prevDest.getX() != destx && (int) prevDest.getY() != desty) {
+            if ((int) prevDest.getX() != destx || (int) prevDest.getY() != desty) {
               display.vue.fishes.get(j).setPosition(xpos, ypos); // A enlever
               Point desti = new Point(destx, desty); // normalement destination donner par controleur
               display.vue.fishes.get(j).set_move(desti, timetoarrived, display.refreshTime);
@@ -224,7 +224,7 @@ public class DisplayConsole {
   private synchronized void sendPacket(String message) throws Exception {
 
     PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())), true);
-    
+
     writer.print(message);
     writer.flush();
   }

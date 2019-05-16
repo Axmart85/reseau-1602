@@ -113,7 +113,7 @@ int del_view(struct aquarium *aq, char *name) {
 /**
  * Add a fish in the aquarium aq
  */
-int add_fish(struct aquarium *aq, char *name, int positionx, int positiony, int sizex, int sizey) {
+int add_fish(struct aquarium *aq, char *name, char* mobility, int positionx, int positiony, int sizex, int sizey) {
   if (sizex <= 0 || sizey <= 0){
     return 0;
   }
@@ -124,7 +124,7 @@ int add_fish(struct aquarium *aq, char *name, int positionx, int positiony, int 
   }
 
   struct fish f;
-  init_fish(&f, name, positionx, positiony, sizex, sizey);
+  init_fish(&f, name, mobility, positionx, positiony, sizex, sizey);
   f.id_fish = fish_id++;
 
   if (aq->size_fishes < aq->fishes_capacity)
@@ -248,19 +248,33 @@ int fish_way_inside_vue(const struct fish * f, const struct vue * v) {
   return 0;
 }
 
-void newfishdestination(struct aquarium* aq, struct fish* f){
+void newfishdestination(struct fish* f, struct position des){
   f->pos.x = f->dest.x;
   f->pos.y = f->dest.y;
 
-  f->dest.x = rand()%aq->height;
-  f->dest.y = rand()%aq->width;
+  f->dest.x = des.x;
+  f->dest.y = des.y;
 }
 
 void move_fishes(struct aquarium* aq) {
   for (int i = 0; i < aq->size_fishes; i++) {
     if (aq->fishes[i].started) {
-      // printf("%f, pos %d/%d\n", aq->timelaps, aq->fishes[i].pos.x, aq->fishes[i].pos.y);
-      newfishdestination(aq, &aq->fishes[i]);
+      struct position des;
+      if( strcmp(aq->fishes[i].mobility, "RandomWayPoint") == 0){
+        des.x = rand()%aq->height;
+        des.y = rand()%aq->width;
+        newfishdestination(&aq->fishes[i], des);
+      } else if ( strcmp(aq->fishes[i].mobility, "HorizontalPathWay") == 0){
+        if (aq->fishes[i].dest.x == 0) des.x = aq->height - aq->fishes[i].fish_height;
+        else {des.x = 0;}
+        des.y = aq->fishes[i].dest.y;
+        newfishdestination(&aq->fishes[i], des);
+      } else if ( strcmp(aq->fishes[i].mobility, "VerticalPathWay") == 0){
+        if (aq->fishes[i].dest.y == 0) des.y = aq->width - aq->fishes[i].fish_width;
+        else {des.y = 0;}
+        des.x = aq->fishes[i].dest.x;
+        newfishdestination(&aq->fishes[i], des);
+      }
     }
   }
 }

@@ -118,11 +118,11 @@ int parseServerConfig() {
       break;
     }
 
-    if (line[0] == '#')  
-      continue;   
+    if (line[0] == '#')
+      continue;
 
     if (line[strlen(line)-1] == '\n'){
-      line[strlen(line)-1] = '\0';     
+      line[strlen(line)-1] = '\0';
     }
 
     switch(step){
@@ -350,7 +350,7 @@ void * updateContinuously(void * data){
 
   while (*(castedData->running)){
     char buffer[1024];
-    char buffer2[1024]; 
+    char buffer2[1024];
     strcpy(buffer2, "list");
     provide_data_vue(aq, client->vue, buffer, 0);
     strcat(buffer2, buffer);
@@ -437,7 +437,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
 
   while (*keepTimer == 1) {
     char buffer[BUF_SIZE];
-    
+
 
     while (poll(&(struct pollfd){ .fd = client->sock, .events = POLLIN }, 1, 0)!=1){
       if (*keepTimer == 0){
@@ -461,7 +461,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
     int wordCount;
 
     char **words = str_split(buffer, ' ', &wordCount);
-    
+
 
     bzero(buffer, BUF_SIZE);
 
@@ -493,7 +493,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
       struct position aqPos = viewToAqCoord(client->vue, viewPos);
       int coordOK = (aqPos.x >=0) && (aqPos.y >= 0);
 
-      if (coordOK && add_fish(aq, words[1], aqPos.x, aqPos.y, sizex, sizey)){
+      if (coordOK && add_fish(aq, words[1], words[5], aqPos.x, aqPos.y, sizex, sizey)){
         strcpy(buffer, "OK");
       } else {
         strcpy(buffer, "NOK");
