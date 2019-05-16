@@ -6,6 +6,7 @@ import java.util.Scanner;
 import java.nio.CharBuffer;
 import java.awt.Point;
 import java.util.concurrent.*;
+import java.util.regex.*;
 
 public class DisplayConsole {
 
@@ -19,9 +20,79 @@ public class DisplayConsole {
   private boolean requestContinuously = false;
   private Socket sock;
   private String addr = "localhost";
+  private String resourcePath = "";
   private Display display;
   private ScheduledExecutorService updateService = Executors.newSingleThreadScheduledExecutor();
   private final ScheduledExecutorService pingService = Executors.newSingleThreadScheduledExecutor();
+  private String view_name = "";
+  private static Pattern pattern;
+  private static Matcher matcher;
+
+  private boolean parseConfig() {
+    try {
+      BufferedReader reader = new BufferedReader(new FileReader("Display/affichage.cfg"));
+      String myLine = null;
+      int step = 0;
+
+      try {
+
+        while ((myLine = reader.readLine()) != null) {
+
+          if (!myLine.startsWith("#")) {
+            if (step == 0) {
+              pattern = Pattern.compile("(controller-address = )([\\x2e/\\w]*)");
+              matcher = pattern.matcher(myLine);
+              if (matcher.matches()) {
+                addr = matcher.group(2);
+                step++;
+              }
+            } else if (step == 1) {
+              pattern = Pattern.compile("(id = )(\\w*)");
+              matcher = pattern.matcher(myLine);
+              if (matcher.matches()) {
+                view_name = matcher.group(2);
+                step++;
+              }
+            } else if (step == 2) {
+              pattern = Pattern.compile("(controller-port = )(\\d*)");
+              matcher = pattern.matcher(myLine);
+              if (matcher.matches()) {
+                port = Integer.parseInt(matcher.group(2));
+                step++;
+              }
+            } else if (step == 3) {
+              pattern = Pattern.compile("(display-timeout-value = )(\\d*)");
+              matcher = pattern.matcher(myLine);
+              if (matcher.matches()) {
+                pingInterval = Integer.parseInt(matcher.group(2));
+                step++;
+              }
+            } else if (step == 4) {
+              pattern = Pattern.compile("(resources =​ )([\\x2e/\\w]*)");
+              matcher = pattern.matcher(myLine);
+              if (matcher.matches()) {
+                resourcePath = matcher.group(2);
+                step++;
+              }
+            }
+          }
+        }
+      } catch (IOException e) {
+        System.out.println(e);
+      }
+      reader.close();
+      if (step != 5){
+        return false;
+      }
+    } catch (FileNotFoundException e) {
+      System.out.println(e);
+      return false;
+    } catch (IOException e) {
+      System.out.println(e);
+      return false;
+    }
+    return true;
+  }
 
   private void startDisplay() {
     display = new Display(vue_width, vue_height);
@@ -86,7 +157,7 @@ public class DisplayConsole {
           if (display.vue.fishes.get(j).getName().compareTo(name) == 0) {
             found = true;
             Point prevDest = display.vue.fishes.get(j).getDestination();
-            if ((int) prevDest.getX() != destx || (int) prevDest.getY() != desty) {
+            if ((int) prevDest.getX() != destx && (int) prevDest.getY() != desty) {
               display.vue.fishes.get(j).setPosition(xpos, ypos); // A enlever
               Point desti = new Point(destx, desty); // normalement destination donner par controleur
               display.vue.fishes.get(j).set_move(desti, timetoarrived, display.refreshTime);
@@ -107,16 +178,16 @@ public class DisplayConsole {
     }
   }
 
-  private boolean openConnection(String param) throws Exception {
+  private boolean openConnection() throws Exception {
 
     Socket socket = new Socket(addr, port);
 
     sock = socket;
 
     String message = "hello";
-    if (!param.equals("")) {
+    if (!view_name.equals("")) {
       message = message.concat(" in as ");
-      message = message.concat(param);
+      message = message.concat(view_name);
     }
     try {
       sendPacket(message);
@@ -153,7 +224,7 @@ public class DisplayConsole {
   private synchronized void sendPacket(String message) throws Exception {
 
     PrintWriter writer = new PrintWriter(new BufferedWriter(new OutputStreamWriter(sock.getOutputStream())), true);
-
+    
     writer.print(message);
     writer.flush();
   }
@@ -296,27 +367,7 @@ public class DisplayConsole {
         updateService.shutdown();
         System.out.println("\t -> Switched to continuous mode");
       }
-    } /*else if (cmd.equals("getFishes") && answer.startsWith("list")) {
-      if (answer.length() > 4) {
-        majFishesParser(answer);
-      }
-    } else if (cmd.equals("getFishesContinuously") && answer.startsWith("list")) {
-      if (answer.length() > 4) {
-        majFishesParser(answer);
-      }
-      requestContinuously = true;
-      updateService.shutdown();
-    } else if (cmd.equals("stopContinuous") && answer.startsWith("OK")) {
-      if (requestContinuously) {
-        requestContinuously = false;
-        updateService.scheduleAtFixedRate(new Runnable() {
-          @Override
-          public void run() {
-            updatePeriodic();
-          }
-        }, 0, 1, TimeUnit.SECONDS);
-      }
-    } */else {
+    } else {
       System.out.println("\t -> NOK : Commande introuvable");
     }
   }
@@ -326,17 +377,20 @@ public class DisplayConsole {
     DisplayConsole dc = new DisplayConsole();
     boolean res = false;
 
+    if (!dc.parseConfig()){
+      System.err.println("Bad configuration file format");
+    }
+
     System.out.print(
         "Veuillez entrer le nom de la vue à afficher, si vous souhaitez obtenir la premiere vue disponible ne donnez pas de nom : ");
-    String view_name = "";
     try {
-      view_name = scanner.readLine();
+      dc.view_name = scanner.readLine();
     } catch (IOException e) {
       System.err.println("BufferedReader error");
     }
 
     try {
-      res = dc.openConnection(view_name);
+      res = dc.openConnection();
     } catch (Exception e) {
       System.err.println("Error creating socket");
     }

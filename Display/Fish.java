@@ -86,10 +86,6 @@ public class Fish{
     this.started = true;
   }
 
-  public boolean isStarted(){
-    return this.started;
-  }
-
   public boolean arrived(){
     return (this.position.equals(this.destination));
   }

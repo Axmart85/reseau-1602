@@ -19,16 +19,21 @@
 #include "fish.h"
 #include "aquarium.h"
 #include "vue.h"
-// #include "util.h"
 
 #define INVALID_SOCKET -1
 #define SOCKET_ERROR -1
 #define closesocket(s) close(s)
 
 #define CRLF "\r\n"
-#define PORT 1977
 #define MAX_CLIENTS 100
-#define MAX_WAITING_TIME 45
+
+// #define PORT 1977
+// #define MAX_WAITING_TIME 45
+// #define UPDATE_INTERVAL 1
+
+int PORT;
+int MAX_WAITING_TIME;
+int UPDATE_INTERVAL;
 
 #define BUF_SIZE 1024
 
@@ -95,6 +100,73 @@ char **str_split(char *a_str, const char a_delim, int *wordCount) {
   }
 
   return result;
+}
+
+int parseServerConfig() {
+
+  FILE *f = fopen("controller.cfg", "r");
+  if (f == NULL) {
+    perror("Error opening configuration file");
+    return EXIT_FAILURE;
+  }
+
+  char line[1024];
+  int step = 0;
+
+  while (!feof(f)) {
+    if (!fgets(line, 1024, f)) {
+      break;
+    }
+
+    if (line[0] == '#')  
+      continue;   
+
+    if (line[strlen(line)-1] == '\n'){
+      line[strlen(line)-1] = '\0';     
+    }
+
+    switch(step){
+      case 0:
+        if ((sscanf(line, "controller-port = %d", &PORT) == EOF)) {
+          perror("Bad Configuration File Format: can't read port");
+          fclose(f);
+          return EXIT_FAILURE;
+        }
+        step++;
+        break;
+
+      case 1:
+        if ((sscanf(line, "display-timeout-value = %d", &MAX_WAITING_TIME) == EOF)) {
+          perror("Bad Configuration File Format: can't read timeout value");
+          fclose(f);
+          return EXIT_FAILURE;
+        }
+        step++;
+        break;
+
+      case 2:
+        if ((sscanf(line, "fish-update-interval = %d", &UPDATE_INTERVAL) == EOF)) {
+          perror("Bad Configuration File Format: can't read update interval value");
+          fclose(f);
+          return EXIT_FAILURE;
+        }
+        step++;
+        break;
+
+      default:
+        fprintf(stderr, "Bad configuration file format\n");
+        fclose(f);
+        return EXIT_FAILURE;
+        break;
+    }
+  }
+  if (step != 3){
+    fprintf(stderr, "Bad configuration file format\n");
+    fclose(f);
+    return EXIT_FAILURE;
+  }
+  fclose(f);
+  return EXIT_SUCCESS;
 }
 
 static int init_connection(void) {
@@ -278,7 +350,7 @@ void * updateContinuously(void * data){
 
   while (*(castedData->running)){
     char buffer[1024];
-    char buffer2[1024];
+    char buffer2[1024]; 
     strcpy(buffer2, "list");
     provide_data_vue(aq, client->vue, buffer, 0);
     strcat(buffer2, buffer);
@@ -287,7 +359,7 @@ void * updateContinuously(void * data){
     }
     bzero(buffer, 1024);
     bzero(buffer2, 1024);
-    sleep(1);
+    sleep(UPDATE_INTERVAL);
   }
   pthread_exit(NULL);
 }
@@ -365,7 +437,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
 
   while (*keepTimer == 1) {
     char buffer[BUF_SIZE];
-
+    
 
     while (poll(&(struct pollfd){ .fd = client->sock, .events = POLLIN }, 1, 0)!=1){
       if (*keepTimer == 0){
@@ -389,7 +461,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
     int wordCount;
 
     char **words = str_split(buffer, ' ', &wordCount);
-
+    
 
     bzero(buffer, BUF_SIZE);
 
@@ -421,7 +493,7 @@ void manageClient(struct client *client, struct aquarium *aq) {
       struct position aqPos = viewToAqCoord(client->vue, viewPos);
       int coordOK = (aqPos.x >=0) && (aqPos.y >= 0);
 
-      if (coordOK && add_fish(aq, words[1], words[5], aqPos.x, aqPos.y, sizex, sizey)){
+      if (coordOK && add_fish(aq, words[1], aqPos.x, aqPos.y, sizex, sizey)){
         strcpy(buffer, "OK");
       } else {
         strcpy(buffer, "NOK");
@@ -555,7 +627,10 @@ void *aquariumRefresher(void * data) {
 }
 
 int main(int argc, char const *argv[]) {
-  // parseServerConfig()
+  if (parseServerConfig() != EXIT_SUCCESS){
+    return -1;
+  }
+
   struct aquarium *aq = malloc(sizeof(struct aquarium));
   (void) argc;
   (void) argv;
